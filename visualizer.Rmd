@@ -11,8 +11,55 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Import ASB CSV files
 
+Below is the function we shall use to read in the CSV's. The output is a list of dataframes.
+
+```{r}
+csvReader <- function(dir, dirFiles) {
+  
+  dfList <- list()
+  
+  for (i in 1:length(dirFiles)) {
+    # Dataframe Labels
+    headers <- as.character(read.csv(paste0(dir, dirFiles[i]), 
+                                   skip = 6, nrow = 1, header = FALSE)[1,])
+    # Dataframe itself
+    df <- read.csv(paste0(dir, dirFiles[i]), skip = 8, header = FALSE)
+    colnames(df) <- headers
+    
+    # Add to list of Dataframe
+    dfList[[i]] <- df
+  }
+  
+  dfList
+  
+}
+```
+
+Below is where the details are put through.
+
+```{r}
+# dir is name of the folder that holds your csv files. This should exist in your 
+# directory.
+dir <- "dataframes/"
+dirFiles <- list.files(dir)
+dfList <- csvReader(dir, dirFiles)
+
+# View the list
+dfList
+```
+
+## Merge dataframes
+
+In this process, we want to merge all the dataframes (which represent individual accounts) into one. To do this cleanly we will also have to eliminate all rows which moves funds between accounts.
+
 ```{r}
 
 
 ```
+
+
+
+
+
+
 
