@@ -53,13 +53,43 @@ dfList
 In this process, we want to merge all the dataframes (which represent individual accounts) into one. To do this cleanly we will also have to eliminate all rows which moves funds between accounts.
 
 ```{r}
-
+mergeDF <- function(dfList) {
+  
+  # Input checks
+  if (length(dfList) == 0) {
+    stop("list length 0")
+  }
+  
+  # Create Single Df
+  finDF <- dfList[[1]]
+  for (i in 2:length(dfList)) {
+    # Row bind the two dataframes
+    finDF <- rbind(finDF, dfList[[i]])
+  }
+  
+  finDF
+  
+}
 
 ```
 
+Process dfList into a single dataframe.
 
+```{r}
+bigDF <- mergeDF(dfList)
+```
 
+## Explore Data
 
+```{r}
+# TFR IN and TFR OUT balance change
+amountTFR <- bigDF$Amount[bigDF$`Tran Type` %in% c("TFR IN", "TFR OUT")]
+
+# all.equal returns true if the sum is equivalent to 0
+all.equal(sum(amountTFR), 0)
+
+# Remove TFR IN and TFR OUT
+```
 
 
 
