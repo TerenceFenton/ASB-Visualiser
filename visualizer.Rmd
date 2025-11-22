@@ -77,19 +77,64 @@ Process dfList into a single dataframe.
 
 ```{r}
 bigDF <- mergeDF(dfList)
+
+# Modify headers for cleanliness
+newHeaders <- gsub(" ", "_", colnames(bigDF))
+colnames(bigDF) <- newHeaders
 ```
 
 ## Explore Data
 
+### Remove internal account transactions
+
 ```{r}
 # TFR IN and TFR OUT balance change
-amountTFR <- bigDF$Amount[bigDF$`Tran Type` %in% c("TFR IN", "TFR OUT")]
+amountTFR <- bigDF$Amount[bigDF$Tran_Type %in% c("TFR IN", "TFR OUT")]
 
 # all.equal returns true if the sum is equivalent to 0
 all.equal(sum(amountTFR), 0)
 
 # Remove TFR IN and TFR OUT
+dfNoTFR <- bigDF[!(bigDF$Tran_Type %in% c("TFR IN", "TFR OUT")), ]
 ```
 
+### Visualise transaction change over time
 
+```{r}
+# Specified df
+accChangeDf <- aggregate(Amount ~ Date, data = bigDF, FUN = sum)
+
+# Date timestamp
+monthDay <- accChangeDf$Date |> substr(6, 10)
+dateSpan <- paste(monthDay[1], "to", monthDay[length(monthDay)])
+
+# Overall change
+overallChange <- round(sum(accChangeDf$Amount), 2)
+
+# Basics
+plot.new()
+plot.window(range(1:dim(accChangeDf)[1]), range(accChangeDf$Amount))
+par(cex = 0.7, omi = c(0, 0, 0, 1))
+
+# Plot Details
+points(factor(accChangeDf$Date), accChangeDf$Amount)
+abline(0, 0, col = "darkred")
+segments(1:dim(accChangeDf)[1], c(0)*dim(accChangeDf)[1],
+         1:dim(accChangeDf)[1], accChangeDf$Amount)
+axis(1, 1:21, monthDay)
+axis(2)
+box()
+
+# Labeling
+condCol <- ifelse(overallChange >= 0, "darkgreen", "darkred")
+
+title(paste("Account Growth per Day from", dateSpan, "(mm/dd)"),  
+      xlab = "Date", ylab = "Dollar change in NZD ($)")
+
+mtext("Cumulative Diff:", 4, outer = TRUE, las = 1, cex = 0.8)
+
+mtext(paste0("\n\n+",overallChange), 4, outer = TRUE, las = 1, 
+      cex = 0.8, col = condCol)
+
+```
 
