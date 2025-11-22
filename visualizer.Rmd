@@ -92,7 +92,10 @@ colnames(bigDF) <- newHeaders
 amountTFR <- bigDF$Amount[bigDF$Tran_Type %in% c("TFR IN", "TFR OUT")]
 
 # all.equal returns true if the sum is equivalent to 0
-all.equal(sum(amountTFR), 0)
+if (all.equal(sum(amountTFR), 0) == FALSE) {
+  stop("Internal Account Transfers do not sum to 0, 
+       provided datasets may be incomplete")
+}
 
 # Remove TFR IN and TFR OUT
 dfNoTFR <- bigDF[!(bigDF$Tran_Type %in% c("TFR IN", "TFR OUT")), ]
@@ -102,7 +105,7 @@ dfNoTFR <- bigDF[!(bigDF$Tran_Type %in% c("TFR IN", "TFR OUT")), ]
 
 ```{r}
 # Specified df
-accChangeDf <- aggregate(Amount ~ Date, data = bigDF, FUN = sum)
+accChangeDf <- aggregate(Amount ~ Date, data = dfNoTFR, FUN = sum)
 
 # Date timestamp
 monthDay <- accChangeDf$Date |> substr(6, 10)
@@ -121,7 +124,7 @@ points(factor(accChangeDf$Date), accChangeDf$Amount)
 abline(0, 0, col = "darkred")
 segments(1:dim(accChangeDf)[1], c(0)*dim(accChangeDf)[1],
          1:dim(accChangeDf)[1], accChangeDf$Amount)
-axis(1, 1:21, monthDay)
+axis(1, 1:dim(accChangeDf)[1], monthDay)
 axis(2)
 box()
 
@@ -137,4 +140,71 @@ mtext(paste0("\n\n+",overallChange), 4, outer = TRUE, las = 1,
       cex = 0.8, col = condCol)
 
 ```
+
+### Gather account net change
+
+Below are functions which will for fill our objectives
+
+```{r}
+# Read CSV's to find total amount on the last day
+csvAvailBal <- function(dir, dirFiles) {
+  
+  balances <- as.numeric()
+  
+  for (i in 1:length(dirFiles)) {
+    # Extract available balance
+    availBalStr <- as.character(read.csv(paste0(dir, dirFiles[i]), 
+                            skip = 4, nrow = 1, header = FALSE))
+    
+    availBal <- as.numeric(strsplit(availBalStr, " ", fixed = TRUE)[[1]][4])
+    
+    balances[i] <- availBal
+  }
+  balances
+}
+
+# Find cumulative balance for previous days.
+
+priorBalance <- function(date, finalSum, givenDF) {
+  # Calculate day difference
+  priorDate <- as.Date(gsub("/", "-", date))
+  finalDate <- as.Date(gsub("/", "-", givenDF$Date[dim(givenDF)[1]]))
+  daysPrior <- finalDate - priorDate
+  
+  # Check if same day
+  if (daysPrior == 0) {
+    return(finalSum)
+  }
+  
+  # Traverse Backwards through each day
+  reversedAmounts <- givenDF$Amount[dim(givenDF)[1]:1]
+  currentSum <- finalSum
+  
+  for (i in 1:daysPrior) {
+    ##as.Date(-i, origin = givenDF$Date[dim(givenDF)[1]])
+    currentSum <- currentSum - reversedAmounts[i]
+  }
+  
+  currentSum
+}
+```
+
+Generate overall account balance.
+
+```{r}
+# Run function and grab final Balance
+availBal <- csvAvailBal(dir, dirFiles)
+cumulativeBal <- sum(availBal)
+
+# Check balances for all previous dates in df
+balances <- as.numeric()
+for (i in 1:dim(accChangeDf)[1]) {
+  given_date <- accChangeDf$Date[i]
+  balances[i] <- priorBalance(given_date, cumulativeBal, accChangeDf)
+}
+
+balanceDf <- data.frame(Date = accChangeDf$Date, Balance = balances)
+balanceDf
+```
+
 
