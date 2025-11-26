@@ -141,6 +141,67 @@ mtext(paste0("\n\n+",overallChange), 4, outer = TRUE, las = 1,
 
 ```
 
+Lets turn the above visualisation into a function.
+
+```{r}
+
+relativeChange <- function(noTransDf, period = "Day") {
+  # Specified df
+  accChangeDf <- aggregate(Amount ~ Date, data = dfNoTFR, FUN = sum)
+  
+  # Date timestamp
+  if (period %in% c("day", "Day", "DAY")) {
+    monthDay <- accChangeDf$Date |> substr(6, 10)
+    dateSpan <- paste(monthDay[1], "to", monthDay[length(monthDay)])
+  } else if (period %in% c("month", "Month", "MONTH")) {
+    monthDay <- accChangeDf$Date |> substr(1, 7)
+    dateSpan <- paste(monthDay[1], "to", monthDay[length(monthDay)])
+    accChangeDf$Date <- monthDay
+    accChangeDf <- aggregate(Amount ~ Date, data = accChangeDf, FUN = sum)
+  } else {
+    stop("Period incorrectly specified. Try 'day' or 'month'")
+  }
+  
+  
+  # Overall change
+  overallChange <- round(sum(accChangeDf$Amount), 2)
+  
+  # Basics
+  plot.new()
+  plot.window(range(1:dim(accChangeDf)[1]), range(accChangeDf$Amount))
+  par(cex = 0.7, omi = c(0, 0, 0, 1))
+  
+  # Plot Details
+  points(factor(accChangeDf$Date), accChangeDf$Amount)
+  abline(0, 0, col = "darkred")
+  segments(1:dim(accChangeDf)[1], c(0)*dim(accChangeDf)[1],
+           1:dim(accChangeDf)[1], accChangeDf$Amount)
+  axis(1, 1:dim(accChangeDf)[1], unique(monthDay))
+  axis(2)
+  box()
+  
+  # Labeling
+  condCol <- ifelse(overallChange >= 0, "darkgreen", "darkred")
+  
+  title(paste("Account Growth per Day from", dateSpan, "(mm/dd)"),  
+        xlab = "Date", ylab = "Dollar change in NZD ($)")
+  
+  mtext("Cumulative Diff:", 4, outer = TRUE, las = 1, cex = 0.8)
+  
+  mtext(paste0("\n\n+",overallChange), 4, outer = TRUE, las = 1, 
+        cex = 0.8, col = condCol)
+}
+
+```
+
+Test Function
+
+```{r}
+relativeChange(dfNoTFR, "Day")
+relativeChange(dfNoTFR, "Month")
+
+```
+
 ### Gather account net change
 
 Below are functions which will for fill our objectives
