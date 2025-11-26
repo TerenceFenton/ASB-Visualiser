@@ -44,8 +44,7 @@ dir <- "dataframes/"
 dirFiles <- list.files(dir)
 dfList <- csvReader(dir, dirFiles)
 
-# View the list
-dfList
+head(dfList[[1]])
 ```
 
 ## Merge dataframes
@@ -99,14 +98,31 @@ if (all.equal(sum(amountTFR), 0) == FALSE) {
 
 # Remove TFR IN and TFR OUT
 dfNoTFR <- bigDF[!(bigDF$Tran_Type %in% c("TFR IN", "TFR OUT")), ]
+
+# Account Change relative to prior day
+changesDf <- aggregate(Amount ~ Date, data = dfNoTFR, FUN = sum)
+
+# Fill in gaps (This ended up becoming more complicated than I thought)
+periodCoverage <- seq(as.Date(changesDf$Date[1], tryFormats = "%Y/%m/%d"),
+                      as.Date(changesDf$Date[dim(changesDf)[1]], 
+                              tryFormats = "%Y/%m/%d"),
+                      by = "days") |>
+  gsub(pattern = "-", replacement = "/")
+
+zeroLots <- c(0) * length(periodCoverage)
+
+# Setup final df with every day in period recorded
+accChangeDf <- data.frame(Date = periodCoverage, Amount = zeroLots)
+
+for (date in changesDf$Date) {
+  accChangeDf$Amount[accChangeDf$Date == date] <- changesDf$Amount[changesDf$Date == date]
+}
+
 ```
 
 ### Visualise transaction change over time
 
 ```{r}
-# Specified df
-accChangeDf <- aggregate(Amount ~ Date, data = dfNoTFR, FUN = sum)
-
 # Date timestamp
 monthDay <- accChangeDf$Date |> substr(6, 10)
 dateSpan <- paste(monthDay[1], "to", monthDay[length(monthDay)])
@@ -182,8 +198,9 @@ relativeChange <- function(noTransDf, period = "Day") {
   
   # Labeling
   condCol <- ifelse(overallChange >= 0, "darkgreen", "darkred")
+  specifier <- ifelse(period %in% c("day", "Day", "DAY"), "(mm/dd)", "(yyyy/mm)")
   
-  title(paste("Account Growth per Day from", dateSpan, "(mm/dd)"),  
+  title(paste("Account Growth per Day from", dateSpan, specifier),  
         xlab = "Date", ylab = "Dollar change in NZD ($)")
   
   mtext("Cumulative Diff:", 4, outer = TRUE, las = 1, cex = 0.8)
@@ -204,7 +221,7 @@ relativeChange(dfNoTFR, "Month")
 
 ### Gather account net change
 
-Below are functions which will for fill our objectives
+Below are functions which will forfill our objectives
 
 ```{r}
 # Read CSV's to find total amount on the last day
@@ -265,7 +282,12 @@ for (i in 1:dim(accChangeDf)[1]) {
 }
 
 balanceDf <- data.frame(Date = accChangeDf$Date, Balance = balances)
-balanceDf
+tail(balanceDf)
 ```
+### Visualise Account Balance over period
 
+```{r}
+# Imagine there's code in here
+
+```
 
