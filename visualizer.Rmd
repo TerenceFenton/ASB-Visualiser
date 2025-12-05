@@ -189,15 +189,19 @@ relativeChange <- function(noTransDf, period = "Day") {
   
   # Plot Details
   points(factor(accChangeDf$Date), accChangeDf$Amount)
-  abline(0, 0, col = "darkred")
+  abline(0, 0, col = "darkred", lty = 2)
+  
+  condColLine <- ifelse(accChangeDf$Amount >= 0, "darkgreen", "darkred")
   segments(1:dim(accChangeDf)[1], c(0)*dim(accChangeDf)[1],
-           1:dim(accChangeDf)[1], accChangeDf$Amount)
+           1:dim(accChangeDf)[1], accChangeDf$Amount,
+           col = condColLine)
+  
   axis(1, 1:dim(accChangeDf)[1], unique(monthDay))
   axis(2)
   box()
   
   # Labeling
-  condCol <- ifelse(overallChange >= 0, "darkgreen", "darkred")
+  condColText <- ifelse(overallChange >= 0, "darkgreen", "darkred")
   specifier <- ifelse(period %in% c("day", "Day", "DAY"), "(mm/dd)", "(yyyy/mm)")
   prefix <- ifelse(period %in% c("day", "Day", "DAY"), "Daily", "Monthly")
   
@@ -207,7 +211,7 @@ relativeChange <- function(noTransDf, period = "Day") {
   mtext("Cumulative Diff:", 4, outer = TRUE, las = 1, cex = 0.8)
   
   mtext(paste0("\n\n+",overallChange), 4, outer = TRUE, las = 1, 
-        cex = 0.8, col = condCol)
+        cex = 0.8, col = condColText)
 }
 
 ```
@@ -299,6 +303,11 @@ plotOverview <- function(balDf, transDf) {
   balDf <- aggregate(Balance ~ Date, data = balDf, FUN = function(x) {x[length(x)]})
   dateSpan <- paste(balDf$Date[1], "to", balDf$Date[dim(balDf)[1]])
   
+  # Do the same with trans for later visualisation
+  changes <- transDf
+  changes$Date <- changes$Date |> substr(1, 7)
+  changes <- aggregate(Amount ~ Date, data = changes, FUN = sum)
+  
   # Graph of average balances by Month
   par(cex = 0.7, omi = c(0, 0, 0, 1))
   plot.new()
@@ -307,6 +316,16 @@ plotOverview <- function(balDf, transDf) {
   lines(factor(balDf$Date), balDf$Balance)
   axis(2)
   box()
+  
+  # Add Lines to compare to rel change
+  condColLine <- ifelse(balDf$Balance <= balDf$Balance + changes$Amount, "darkgreen", "darkred")
+  segments(1:dim(balDf)[1], balDf$Balance - changes$Amount,
+           1:dim(balDf)[1], balDf$Balance,
+           col = condColLine)
+  segments(1:dim(balDf)[1] - 1, balDf$Balance - changes$Amount,
+           1:dim(balDf)[1], balDf$Balance - changes$Amount,
+           col = condColLine, lty = 2)
+  
   title(paste("Monthly Balance Over", dateSpan, "(yyyy/mm)"), ylab = "Balance Amount ($)")
   
   # Graph of relative changes by Month
@@ -321,10 +340,26 @@ Plot everything
 plotOverview(balanceDf, dfNoTFR)
 ```
 
+### Misc metrics
+
+```{r}
+saveChange <- sum(bigDF$Amount[bigDF$Memo == "SAVETHECHANG E"])
+saveChange
+
+sum(bigDF$Amount[bigDF$Payee == "ASB BANK - INTEREST"]) - 
+  max(bigDF$Amount[bigDF$Payee == "ASB BANK - INTEREST"]) -
+  sum(bigDF$Amount[bigDF$Payee ==  "IRD:TAX ON INTEREST"])
+```
+
+
+
 ## Transaction Classifier
 
 Now with visual changes determined, understanding where that money is going could be incredibly beneficial for understanding the context behind these transactions.
 
 
+```{r}
 
+
+```
 
