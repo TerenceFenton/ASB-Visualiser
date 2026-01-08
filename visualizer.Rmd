@@ -21,9 +21,9 @@ csvReader <- function(dir, dirFiles) {
   for (i in 1:length(dirFiles)) {
     # Dataframe Labels
     headers <- as.character(read.csv(paste0(dir, dirFiles[i]), 
-                                   skip = 6, nrow = 1, header = FALSE)[1,])
+                                   skip = 5, nrow = 1, header = FALSE)[1,])
     # Dataframe itself
-    df <- read.csv(paste0(dir, dirFiles[i]), skip = 8, header = FALSE)
+    df <- read.csv(paste0(dir, dirFiles[i]), skip = 7, header = FALSE)
     colnames(df) <- headers
     
     # Add to list of Dataframe
