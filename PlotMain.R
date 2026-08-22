@@ -1,0 +1,248 @@
+# =========
+# Functions
+# =========
+
+# CSV READER to read all account csv's into one list of dataframes
+csvReader <- function(dir, dirFiles) {
+  
+  dfList <- list()
+  
+  for (i in 1:length(dirFiles)) {
+    # Dataframe Labels
+    headers <- as.character(read.csv(paste0(dir, dirFiles[i]), 
+                                     skip = 6, nrow = 1, header = FALSE)[1,])
+    # Dataframe itself
+    df <- read.csv(paste0(dir, dirFiles[i]), skip = 7, header = FALSE)
+    colnames(df) <- headers
+    
+    # Add to list of Dataframe
+    dfList[[i]] <- df
+  }
+  
+  dfList
+  
+}
+
+# Merge List of DF into one large DF
+mergeDF <- function(dfList) {
+  
+  # Input checks
+  if (length(dfList) == 0) {
+    stop("list length 0")
+  }
+  
+  # Create Single Df
+  finDF <- dfList[[1]]
+  for (i in 2:length(dfList)) {
+    # Row bind the two dataframes
+    finDF <- rbind(finDF, dfList[[i]])
+  }
+  
+  finDF
+  
+}
+
+# Plot relative change across all accounts for each passing Day or Month (toggle-able)
+relativeChange <- function(noTransDf, period = "Month") {
+  # Specified df
+  accChangeDf <- aggregate(Amount ~ Date, data = noTransDf, FUN = sum)
+  
+  # Date timestamp
+  if (period %in% c("day", "Day", "DAY")) {
+    monthDay <- paste0(substr(accChangeDf$Date, 6, 10),"/", substr(accChangeDf$Date, 3, 4))
+    dateSpan <- paste(monthDay[1], "to", monthDay[length(monthDay)])
+  } else if (period %in% c("month", "Month", "MONTH")) {
+    monthDay <- accChangeDf$Date |> substr(1, 7)
+    dateSpan <- paste(monthDay[1], "to", monthDay[length(monthDay)])
+    accChangeDf$Date <- monthDay
+    accChangeDf <- aggregate(Amount ~ Date, data = accChangeDf, FUN = sum)
+  } else {
+    stop("Period incorrectly specified. Try 'day' or 'month'")
+  }
+  
+  
+  # Overall change
+  overallChange <- round(sum(accChangeDf$Amount), 2)
+  
+  # Basics
+  plot.new()
+  plot.window(range(1:dim(accChangeDf)[1]), range(accChangeDf$Amount))
+  par(cex = 0.7, omi = c(0, 0, 0, 1))
+  
+  # Plot Details
+  points(factor(accChangeDf$Date), accChangeDf$Amount)
+  abline(0, 0, col = "darkred", lty = 2)
+  
+  condColLine <- ifelse(accChangeDf$Amount >= 0, "darkgreen", "darkred")
+  segments(1:dim(accChangeDf)[1], c(0)*dim(accChangeDf)[1],
+           1:dim(accChangeDf)[1], accChangeDf$Amount,
+           col = condColLine)
+  
+  axis(1, 1:dim(accChangeDf)[1], unique(monthDay))
+  axis(2)
+  box()
+  
+  # Labeling
+  condColText <- ifelse(overallChange >= 0, "darkgreen", "darkred")
+  specifier <- ifelse(period %in% c("day", "Day", "DAY"), "(mm/dd/yy)", "(yyyy/mm)")
+  prefix <- ifelse(period %in% c("day", "Day", "DAY"), "Daily", "Monthly")
+  
+  title(paste(prefix, "Balance Change from", dateSpan, specifier),  
+        xlab = "Date", ylab = "Dollar change in NZD ($)")
+  
+  mtext("Cumulative Diff:", 4, outer = TRUE, las = 1, cex = 0.8)
+  
+  mtext(paste0("\n\n+",overallChange), 4, outer = TRUE, las = 1, 
+        cex = 0.8, col = condColText)
+}
+
+# Read through CSV files again to collect summary info on available present 
+# balance (Acts as a starting point)
+csvAvailBal <- function(dir, dirFiles) {
+  
+  balances <- as.numeric()
+  
+  for (i in 1:length(dirFiles)) {
+    # Extract available balance
+    availBalStr <- as.character(read.csv(paste0(dir, dirFiles[i]), 
+                                         skip = 4, nrow = 1, header = FALSE))
+    
+    availBal <- as.numeric(strsplit(availBalStr, " ", fixed = TRUE)[[1]][4])
+    
+    balances[i] <- availBal
+  }
+  balances
+}
+
+# Based on present balance, for each prior day record the total - change.
+priorBalance <- function(date, finalSum, givenDF) {
+  # Calculate day difference
+  priorDate <- as.Date(gsub("/", "-", date))
+  finalDate <- as.Date(gsub("/", "-", givenDF$Date[dim(givenDF)[1]]))
+  daysPrior <- finalDate - priorDate
+  
+  # Check if same day
+  if (daysPrior == 0) {
+    return(finalSum)
+  }
+  
+  # Traverse Backwards through each day
+  reversedAmounts <- givenDF$Amount[dim(givenDF)[1]:1]
+  currentSum <- finalSum
+  
+  for (i in 1:daysPrior) {
+    ##as.Date(-i, origin = givenDF$Date[dim(givenDF)[1]])
+    currentSum <- currentSum - reversedAmounts[i]
+  }
+  
+  currentSum
+}
+
+# Plot the overall change in conjunction with relative change each month.
+plotOverview <- function(balDf, transDf) {
+  # Joint layout
+  layout(matrix(c(1, 1, 2, 2), nrow = 2, byrow = TRUE))
+  
+  # Alter balances to be averaged by month
+  balDf$Date <- balDf$Date |> substr(1, 7)
+  balDf <- aggregate(Balance ~ Date, data = balDf, FUN = function(x) {x[length(x)]})
+  dateSpan <- paste(balDf$Date[1], "to", balDf$Date[dim(balDf)[1]])
+  
+  # Do the same with trans for later visualisation
+  changes <- transDf
+  changes$Date <- changes$Date |> substr(1, 7)
+  changes <- aggregate(Amount ~ Date, data = changes, FUN = sum)
+  
+  # Graph of average balances by Month
+  par(cex = 0.7, omi = c(0, 0, 0, 1))
+  plot.new()
+  plot.window(range(1:dim(balDf)[1]), range(balDf$Balance))
+  points(factor(balDf$Date), balDf$Balance, pch = 20)
+  lines(factor(balDf$Date), balDf$Balance)
+  axis(2)
+  box()
+  
+  # Add Lines to compare to rel change
+  condColLine <- ifelse(balDf$Balance <= balDf$Balance + changes$Amount, "darkgreen", "darkred")
+  segments(1:dim(balDf)[1], balDf$Balance - changes$Amount,
+           1:dim(balDf)[1], balDf$Balance,
+           col = condColLine)
+  segments(1:dim(balDf)[1] - 1, balDf$Balance - changes$Amount,
+           1:dim(balDf)[1], balDf$Balance - changes$Amount,
+           col = condColLine, lty = 2)
+  
+  title(paste("Monthly Balance Over", dateSpan, "(yyyy/mm)"), ylab = "Balance Amount ($)")
+  
+  # Graph of relative changes by Month
+  relativeChange(transDf, "Month")
+}
+
+
+# =========
+# Hard code
+# =========
+
+# dir is name of the folder that holds your csv files. This should exist in your 
+# directory.
+
+dirFiles <- list.files(dir)
+dfList <- csvReader(dir, dirFiles)
+
+head(dfList[[1]])
+
+bigDF <- mergeDF(dfList)
+
+# Modify headers for cleanliness
+newHeaders <- gsub(" ", "_", colnames(bigDF))
+colnames(bigDF) <- newHeaders
+
+# TFR IN and TFR OUT balance change
+amountTFR <- bigDF$Amount[bigDF$Tran_Type %in% c("TFR IN", "TFR OUT")]
+
+# all.equal returns true if the sum is equivalent to 0
+if (all.equal(sum(amountTFR), 0) == FALSE) {
+  stop("Internal Account Transfers do not sum to 0, 
+       provided datasets may be incomplete")
+}
+
+# Remove TFR IN and TFR OUT
+dfNoTFR <- bigDF[!(bigDF$Tran_Type %in% c("TFR IN", "TFR OUT")), ]
+
+# Account Change relative to prior day
+changesDf <- aggregate(Amount ~ Date, data = dfNoTFR, FUN = sum)
+
+# Fill in gaps (This ended up becoming more complicated than I thought)
+periodCoverage <- seq(as.Date(changesDf$Date[1], tryFormats = "%Y/%m/%d"),
+                      as.Date(changesDf$Date[dim(changesDf)[1]], 
+                              tryFormats = "%Y/%m/%d"),
+                      by = "days") |>
+  gsub(pattern = "-", replacement = "/")
+
+zeroLots <- c(0) * length(periodCoverage)
+
+# Setup final df with every day in period recorded
+accChangeDf <- data.frame(Date = periodCoverage, Amount = zeroLots)
+
+for (date in changesDf$Date) {
+  accChangeDf$Amount[accChangeDf$Date == date] <- changesDf$Amount[changesDf$Date == date]
+}
+
+# Plot relative change
+dailyRelChange <- relativeChange(dfNoTFR, "Day")
+monthlyRelChange <- relativeChange(dfNoTFR, "Month")
+
+# Start focusing on cumulative change
+# Run function and grab final Balance
+availBal <- csvAvailBal(dir, dirFiles)
+cumulativeBal <- sum(availBal)
+
+# Check balances for all previous dates in df
+balances <- as.numeric()
+for (i in 1:dim(accChangeDf)[1]) {
+  given_date <- accChangeDf$Date[i]
+  balances[i] <- priorBalance(given_date, cumulativeBal, accChangeDf)
+}
+
+balanceDf <- data.frame(Date = accChangeDf$Date, Balance = balances)
+
+monthlyPlotOverview <- plotOverview(balanceDf, dfNoTFR)
