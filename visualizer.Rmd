@@ -14,8 +14,8 @@ knitr::opts_chunk$set(echo = TRUE)
 Below runs an R file that does a lot of heavy lifting for plotting your transactions and account summary. Simply define the location of your CSV directory and hit run.
 
 ```{r}
-# Define your directory here! Example:
-dir <- "Aug24-Aug26/"
+# Define your directory here!
+dir <- "TwoYearExample"
 source("PlotMain.R")
 ```
 
@@ -24,9 +24,23 @@ source("PlotMain.R")
 
 Now with visual changes determined, understanding where that money is going could be incredibly beneficial for understanding the context behind these transactions.
 
+```{r}
+# Create sample size of 300
+set.seed(83)
+noTFRsample <- dfNoTFR[sample(1:nrow(dfNoTFR), 500),]
+# write.csv(noTFRsample, "noTFRsample")
+```
+
+Gotta manually put in the true classifications for this sample...
 
 ```{r}
-
-
+dfNoTFRLabelled <- read.csv("dfNoTFRLabelled.csv")
+source("NB-DT.R")
 ```
+
+
+
+
+
+
 
