@@ -1,0 +1,91 @@
+---
+title: "NB Multinomial Report"
+author: "Terry Fenton"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Scores
+
+```{r}
+# Accuracy: (TP + TN) / Tot 
+trainAC <- sum(trainDF$Classifier == trainPreds) / nrow(trainDF) 
+valAC <- sum(valDF$Classifier == valPreds) / nrow(valDF) 
+testAC <- sum(testDF$Classifier == testPreds) / nrow(testDF) 
+
+print("Accuracy")
+paste("Train:", trainAC)
+paste("Validation:", valAC)
+paste("Test:", testAC)
+```
+Overall not a great performance. Let's see where we could improve.
+
+```{r}
+# Precision: (TP / (TP + FP))
+
+trainPR <- c()
+valPR <- c()
+testPR <- c()
+
+for (i in 1:8) {
+  trainPR <- c(trainPR, sum(trainDF$Classifier == i & trainPreds == i) / (sum(trainDF$Classifier == i)))
+  valPR <- c(valPR, sum(valDF$Classifier == i & valPreds == i) / (sum(valDF$Classifier == i)))
+  testPR <- c(testPR, sum(testDF$Classifier == i & testPreds == i) / (sum(testDF$Classifier == i)))
+}
+precisionTable <- data.frame(classifier = categories[2:9], train = trainPR, validation = valPR, test = testPR)
+
+print("Precision")
+precisionTable
+```
+
+We are incredibly well suited at predicting Income and Food spending, and are very consistent at predicting expenses 66% of the time across the board. What this says to me is that our regular, recurring expenses have been captured with exception to Expenses (which seems to have a particular expense that is regularly misclassified) and Travel (which for all intensive purposes, should just be AT). 
+
+Health, Education, Investments and Wants are either incredibly variable or scarse based on these scores.
+
+```{r}
+# Recall: TP / (TP + FN)
+
+trainRC <- c()
+valRC <- c()
+testRC <- c()
+
+for (i in 1:8) {
+  trainRC <- c(trainRC, sum(trainDF$Classifier == i & trainPreds == i) / 
+                 (sum(trainDF$Classifier == i & trainPreds == i) + sum(trainDF$Classifier == i & !(trainPreds == i))))
+  valRC <- c(valRC, sum(valDF$Classifier == i & valPreds == i) / 
+               (sum(trainDF$Classifier == i & trainPreds == i) + sum(trainDF$Classifier == i & !(trainPreds == i))))
+  testRC <- c(testRC, sum(testDF$Classifier == i & testPreds == i) / 
+                (sum(trainDF$Classifier == i & trainPreds == i) + sum(trainDF$Classifier == i & !(trainPreds == i))))
+}
+recallTable <- data.frame(classifier = categories[2:9], train = trainRC, validation = valRC, test = testRC)
+
+print("Recall")
+recallTable
+
+```
+
+
+```{r}
+# F1 Score
+
+trainF1 <- c()
+valF1 <- c()
+testF1 <- c()
+
+for (i in 1:8) {
+  trainF1 <- c(trainF1, (2 * trainPR[i] * trainRC[i]) / (trainPR[i] + trainRC[i]))
+  valF1 <- c(valF1, (2 * valPR[i] * valRC[i]) / (valPR[i] + valRC[i]))
+  testF1 <- c(testF1, (2 * testPR[i] * testRC[i]) / (testPR[i] + testRC[i]))
+}
+
+f1Table <- data.frame(classifier = categories[2:9], train = trainF1, validation = valF1, test = testF1)
+
+print("F1 Score")
+f1Table
+
+```
+
+Overall, not great. Lets try a different model.
+
+
+

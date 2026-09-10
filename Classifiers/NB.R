@@ -3,6 +3,22 @@ set.seed(83)
 
 # Preprocess so Trans_Type, Payee and Memo are together in one string
 trialStr <- c()
+wordRemoval <- c("i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", 
+                 "your", "yours", "yourself", "yourselves", "he", "him", "his", "himself", 
+                 "she", "her", "hers", "herself", "it", "its", "itself", "they", "them", 
+                 "their", "theirs", "themselves", "what", "which", "who", "whom", "this", 
+                 "that", "these", "those", "am", "is", "are", "was", "were", "be", "been", 
+                 "being", "have", "has", "had", "having", "do", "does", "did", "doing", "a", 
+                 "an", "the", "and", "but", "if", "or", "because", "as", "until", "while", 
+                 "of", "at", "by", "for", "with", "about", "against", "between", "into", 
+                 "through", "during", "before", "after", "above", "below", "to", "from", 
+                 "up", "down", "in", "out", "on", "off", "over", "under", "again", "further", 
+                 "then", "once", "here", "there", "when", "where", "why", "how", "all", "any", 
+                 "both", "each", "few", "more", "most", "other", "some", "such", "no", "nor", 
+                 "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can", 
+                 "will", "just", "don", "should", "now", "devonport", "auckland", "-", "takapuna",
+                 "uni", "city", "orewa")
+
 for (i in 1:500) {
   row <- dfNoTFRLabelled[i,]
   str1 <- row$Tran_Type
@@ -10,8 +26,17 @@ for (i in 1:500) {
   str3 <- row$Memo
   bigStr <- paste(str1, str2, str3)
   bigStrLower <- tolower(bigStr)
-  trialStr <- c(trialStr, bigStrLower)
+  splitBigStr <- strsplit(bigStrLower, " ", fixed = TRUE)[[1]]
+  freshList <- c()
+  for (word in splitBigStr) {
+    if (!(word %in% wordRemoval)) {
+      freshList <- c(freshList, word)
+    }
+  }
+  pastedfreshList <- paste(freshList, collapse = " ")
+  trialStr <- c(trialStr, pastedfreshList)
 }
+
 dfNoTFRLabelled["trialStr"] <- trialStr
 
 # Sample them down
@@ -31,7 +56,8 @@ for (i in 1:7) {
 categories <- c("Word", "Income", "Expenses", "Food", "Wants", "Travel", 
                 "Health", "Education", "Investments")
 NBCounts <- data.frame("Word"= c("a"),"Income"=c(0), "Expenses"=c(0), "Food"=c(0), 
-                      "Wants"=c(0), "Travel"=c(0), "Health"=c(0), "Education"=c(0))
+                      "Wants"=c(0), "Travel"=c(0), "Health"=c(0), "Education"=c(0),
+                      "Investments"=c(0))
 
 for (i in 1:nrow(trainDF)) {
   trial <- trainDF[i, "trialStr"]
@@ -41,7 +67,7 @@ for (i in 1:nrow(trainDF)) {
   for (word in splitTrial) {
     if (!(word %in% NBCounts$Word)) {
       newrow <- data.frame("Word"= c(word),"Income"=c(0), "Expenses"=c(0), "Food"=c(0), 
-                 "Wants"=c(0), "Travel"=c(0), "Health"=c(0), "Education"=c(0))
+                 "Wants"=c(0), "Travel"=c(0), "Health"=c(0), "Education"=c(0), "Investments"=c(0))
       NBCounts <- rbind(NBCounts, newrow)
     }
     
